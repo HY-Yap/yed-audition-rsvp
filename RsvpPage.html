@@ -1,432 +1,321 @@
-<!DOCTYPE html>
+<!doctype html>
 
 <html>
+  <head>
+    <base target="_top" />
 
-<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #ffffff;
+        color: #222;
+        margin: 0;
+      }
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1"
-  >
+      .container {
+        max-width: 520px;
+        margin: 80px auto;
+        padding: 32px;
+        text-align: center;
+      }
 
-  <style>
+      h1 {
+        margin-bottom: 12px;
+      }
 
-    body {
-      font-family: Arial, sans-serif;
-      background: #ffffff;
-      color: #222;
-      margin: 0;
-    }
+      p {
+        font-size: 16px;
+        line-height: 1.5;
+      }
 
-    .container {
-      max-width: 520px;
-      margin: 80px auto;
-      padding: 32px;
-      text-align: center;
-    }
+      .details-card {
+        margin: 24px auto;
+        padding: 20px 24px;
+        max-width: 340px;
+        background: #f5f5f5;
+        border-radius: 10px;
+        text-align: left;
+      }
 
-    h1 {
-      margin-bottom: 12px;
-    }
+      .detail-row {
+        display: flex;
+        gap: 12px;
+        margin: 10px 0;
+      }
 
-    p {
-      font-size: 16px;
-      line-height: 1.5;
-    }
+      .detail-label {
+        min-width: 56px;
+        font-weight: 700;
+      }
 
-    .details-card {
-      margin: 24px auto;
-      padding: 20px 24px;
-      max-width: 340px;
-      background: #f5f5f5;
-      border-radius: 10px;
-      text-align: left;
-    }
+      button {
+        margin-top: 12px;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        background: #1a73e8;
+        color: white;
+        cursor: pointer;
+      }
 
-    .detail-row {
-      display: flex;
-      gap: 12px;
-      margin: 10px 0;
-    }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
 
-    .detail-label {
-      min-width: 56px;
-      font-weight: 700;
-    }
+      .secondary {
+        margin-top: 20px;
+        color: #666;
+        font-size: 14px;
+      }
 
-    button {
-      margin-top: 12px;
-      padding: 12px 24px;
-      font-size: 16px;
-      font-weight: 600;
-      border: none;
-      border-radius: 8px;
-      background: #1a73e8;
-      color: white;
-      cursor: pointer;
-    }
+      .success {
+        font-size: 48px;
+        margin-bottom: 8px;
+      }
 
-    button:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
+      .error {
+        color: #b3261e;
+      }
+    </style>
+  </head>
 
-    .secondary {
-      margin-top: 20px;
-      color: #666;
-      font-size: 14px;
-    }
+  <body>
+    <div class="container">
+      <div id="content">
+        <h1>Loading audition details...</h1>
 
-    .success {
-      font-size: 48px;
-      margin-bottom: 8px;
-    }
-
-    .error {
-      color: #b3261e;
-    }
-
-  </style>
-
-</head>
-
-
-<body>
-
-  <div class="container">
-
-    <div id="content">
-
-      <h1>
-        Loading audition details...
-      </h1>
-
-      <p>
-        Please wait.
-      </p>
-
+        <p>Please wait.</p>
+      </div>
     </div>
 
-  </div>
+    <script>
+      let sheetId = null;
+      let token = null;
 
+      // --------------------------------------------------------
+      // Read confirmation link
+      // --------------------------------------------------------
 
-  <script>
+      google.script.url.getLocation(function (location) {
+        const params = new URLSearchParams(location.hash || "");
 
-    let sheetId = null;
-    let token = null;
+        sheetId = Number(params.get("sheet"));
 
-
-    // --------------------------------------------------------
-    // Read confirmation link
-    // --------------------------------------------------------
-
-    google.script.url.getLocation(
-      function(location) {
-
-        const params =
-          new URLSearchParams(
-            location.hash || ""
-          );
-
-        sheetId =
-          Number(
-            params.get("sheet")
-          );
-
-        token =
-          params.get("token");
-
+        token = params.get("token");
 
         if (!sheetId || !token) {
-
           showError(
             "Invalid confirmation link",
-            "This confirmation link is incomplete."
+            "This confirmation link is incomplete.",
           );
 
           return;
         }
 
-
         // Fetch details before displaying the confirmation button
         google.script.run
-          .withSuccessHandler(
-            showConfirmationPage
-          )
-          .withFailureHandler(
-            handleFailure
-          )
-          .getAuditionDetails(
-            sheetId,
-            token
+          .withSuccessHandler(showConfirmationPage)
+          .withFailureHandler(handleFailure)
+          .getAuditionDetails(sheetId, token);
+      });
+
+      // --------------------------------------------------------
+      // Initial confirmation page
+      // --------------------------------------------------------
+
+      function showConfirmationPage(result) {
+        if (!result || !result.success) {
+          showError(
+            "Invalid confirmation link",
+            result && result.message
+              ? result.message
+              : "We could not find an audition associated with this link.",
           );
 
-      }
-    );
+          return;
+        }
 
+        // already confirmed previously
+        if (result.status === "Confirmed") {
+          document.getElementById("content").innerHTML =
+            '<div class="success">' +
+            "✓" +
+            "</div>" +
+            "<h1>" +
+            "Attendance Confirmed" +
+            "</h1>" +
+            "<p>" +
+            "Thank you, " +
+            escapeHtml(result.name) +
+            "." +
+            "</p>" +
+            "<p>" +
+            "Your attendance has already been recorded for:" +
+            "</p>" +
+            detailsCard(result.date, result.time) +
+            '<p class="secondary">' +
+            "You may close this page." +
+            "</p>";
 
-    // --------------------------------------------------------
-    // Initial confirmation page
-    // --------------------------------------------------------
+          return;
+        }
 
-    function showConfirmationPage(
-      result
-    ) {
-
-      if (
-        !result ||
-        !result.success
-      ) {
-
-        showError(
-          "Invalid confirmation link",
-          result && result.message
-            ? result.message
-            : "We could not find an audition associated with this link."
-        );
-
-        return;
-      }
-
-
-      document
-        .getElementById("content")
-        .innerHTML =
-
-          '<h1>' +
-          'Confirm Attendance' +
-          '</h1>' +
-
-          '<p>' +
-          'Please confirm that you have received your audition slot and will be attending.' +
-          '</p>' +
-
-          detailsCard(
-            result.date,
-            result.time
-          ) +
-
-          '<button ' +
+        // not yet confirmed
+        document.getElementById("content").innerHTML =
+          "<h1>" +
+          "Confirm Attendance" +
+          "</h1>" +
+          "<p>" +
+          "Please confirm that you have received your audition slot and will be attending." +
+          "</p>" +
+          detailsCard(result.date, result.time) +
+          "<button " +
           'id="confirmButton" ' +
           'onclick="confirmAttendanceClick()">' +
-          'Confirm Attendance' +
-          '</button>' +
-
+          "Confirm Attendance" +
+          "</button>" +
           '<p class="secondary">' +
-          'Only click the button if you are able to attend the slot shown above.' +
-          '</p>';
-    }
-
-
-    // --------------------------------------------------------
-    // User presses Confirm Attendance
-    // --------------------------------------------------------
-
-    function confirmAttendanceClick() {
-
-      if (!sheetId || !token) {
-
-        showError(
-          "Invalid confirmation link",
-          "This confirmation link is incomplete."
-        );
-
-        return;
+          "Only click the button if you are able to attend the slot shown above." +
+          "</p>";
       }
 
+      // --------------------------------------------------------
+      // User presses Confirm Attendance
+      // --------------------------------------------------------
 
-      const button =
-        document.getElementById(
-          "confirmButton"
-        );
+      function confirmAttendanceClick() {
+        if (!sheetId || !token) {
+          showError(
+            "Invalid confirmation link",
+            "This confirmation link is incomplete.",
+          );
 
+          return;
+        }
 
-      if (button) {
-        button.disabled = true;
-        button.textContent =
-          "Confirming...";
+        const button = document.getElementById("confirmButton");
+
+        if (button) {
+          button.disabled = true;
+          button.textContent = "Confirming...";
+        }
+
+        google.script.run
+          .withSuccessHandler(handleConfirmationResult)
+          .withFailureHandler(handleFailure)
+          .confirmAttendance(sheetId, token);
       }
 
+      // --------------------------------------------------------
+      // Confirmation successful
+      // --------------------------------------------------------
 
-      google.script.run
-        .withSuccessHandler(
-          handleConfirmationResult
-        )
-        .withFailureHandler(
-          handleFailure
-        )
-        .confirmAttendance(
-          sheetId,
-          token
-        );
-    }
+      function handleConfirmationResult(result) {
+        if (!result || !result.success) {
+          showError(
+            "Unable to confirm",
+            result && result.message
+              ? result.message
+              : "We could not find an audition associated with this link.",
+          );
 
+          return;
+        }
 
-    // --------------------------------------------------------
-    // Confirmation successful
-    // --------------------------------------------------------
-
-    function handleConfirmationResult(
-      result
-    ) {
-
-      if (
-        !result ||
-        !result.success
-      ) {
-
-        showError(
-          "Unable to confirm",
-          result && result.message
-            ? result.message
-            : "We could not find an audition associated with this link."
-        );
-
-        return;
-      }
-
-
-      document
-        .getElementById("content")
-        .innerHTML =
-
+        document.getElementById("content").innerHTML =
           '<div class="success">' +
-          '✓' +
-          '</div>' +
-
-          '<h1>' +
-          'Attendance Confirmed' +
-          '</h1>' +
-
-          '<p>' +
-          'Thank you, ' +
+          "✓" +
+          "</div>" +
+          "<h1>" +
+          "Attendance Confirmed" +
+          "</h1>" +
+          "<p>" +
+          "Thank you, " +
           escapeHtml(result.name) +
-          '.' +
-          '</p>' +
-
-          '<p>' +
-          'Your attendance has been recorded for:' +
-          '</p>' +
-
-          detailsCard(
-            result.date,
-            result.time
-          ) +
-
+          "." +
+          "</p>" +
+          "<p>" +
+          "Your attendance has been recorded for:" +
+          "</p>" +
+          detailsCard(result.date, result.time) +
           '<p class="secondary">' +
-          'You may close this page.' +
-          '</p>';
-    }
+          "You may close this page." +
+          "</p>";
+      }
 
+      // --------------------------------------------------------
+      // Reusable audition-details card
+      // --------------------------------------------------------
 
-    // --------------------------------------------------------
-    // Reusable audition-details card
-    // --------------------------------------------------------
-
-    function detailsCard(
-      date,
-      time
-    ) {
-
-      return (
-        '<div class="details-card">' +
-
+      function detailsCard(date, time) {
+        return (
+          '<div class="details-card">' +
           '<div class="detail-row">' +
-
-            '<div class="detail-label">' +
-            'Date:' +
-            '</div>' +
-
-            '<div>' +
-            escapeHtml(date) +
-            '</div>' +
-
-          '</div>' +
-
+          '<div class="detail-label">' +
+          "Date:" +
+          "</div>" +
+          "<div>" +
+          escapeHtml(date) +
+          "</div>" +
+          "</div>" +
           '<div class="detail-row">' +
+          '<div class="detail-label">' +
+          "Time:" +
+          "</div>" +
+          "<div>" +
+          escapeHtml(time) +
+          "</div>" +
+          "</div>" +
+          "</div>"
+        );
+      }
 
-            '<div class="detail-label">' +
-            'Time:' +
-            '</div>' +
+      // --------------------------------------------------------
+      // Error from Apps Script
+      // --------------------------------------------------------
 
-            '<div>' +
-            escapeHtml(time) +
-            '</div>' +
+      function handleFailure(error) {
+        showError(
+          "Something went wrong",
+          error && error.message
+            ? error.message
+            : "We were unable to load or record your confirmation.",
+        );
+      }
 
-          '</div>' +
+      // --------------------------------------------------------
+      // Show error page
+      // --------------------------------------------------------
 
-        '</div>'
-      );
-    }
-
-
-    // --------------------------------------------------------
-    // Error from Apps Script
-    // --------------------------------------------------------
-
-    function handleFailure(
-      error
-    ) {
-
-      showError(
-        "Something went wrong",
-        error && error.message
-          ? error.message
-          : "We were unable to load or record your confirmation."
-      );
-    }
-
-
-    // --------------------------------------------------------
-    // Show error page
-    // --------------------------------------------------------
-
-    function showError(
-      title,
-      message
-    ) {
-
-      document
-        .getElementById("content")
-        .innerHTML =
-
+      function showError(title, message) {
+        document.getElementById("content").innerHTML =
           '<h1 class="error">' +
           escapeHtml(title) +
-          '</h1>' +
-
-          '<p>' +
+          "</h1>" +
+          "<p>" +
           escapeHtml(message) +
-          '</p>' +
-
+          "</p>" +
           '<p class="secondary">' +
-          'Please contact the organisers if you believe this is an error.' +
-          '</p>';
-    }
+          "Please contact the organisers if you believe this is an error." +
+          "</p>";
+      }
 
+      // --------------------------------------------------------
+      // Protect HTML output
+      // --------------------------------------------------------
 
-    // --------------------------------------------------------
-    // Protect HTML output
-    // --------------------------------------------------------
+      function escapeHtml(text) {
+        const div = document.createElement("div");
 
-    function escapeHtml(
-      text
-    ) {
+        div.textContent = text || "";
 
-      const div =
-        document.createElement(
-          "div"
-        );
-
-      div.textContent =
-        text || "";
-
-      return div.innerHTML;
-    }
-
-  </script>
-
-</body>
-
+        return div.innerHTML;
+      }
+    </script>
+  </body>
 </html>
