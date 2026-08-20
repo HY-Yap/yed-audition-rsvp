@@ -104,11 +104,13 @@
       google.script.url.getLocation(function (location) {
         const params = new URLSearchParams(location.hash || "");
 
-        sheetId = Number(params.get("sheet"));
+        const sheetParam = params.get("sheet");
+
+        sheetId = Number(sheetParam);
 
         token = params.get("token");
 
-        if (!sheetId || !token) {
+        if (sheetParam === null || Number.isNaN(sheetId) || !token) {
           showError(
             "Invalid confirmation link",
             "This confirmation link is incomplete.",
@@ -165,7 +167,6 @@
           return;
         }
 
-        // not yet confirmed
         document.getElementById("content").innerHTML =
           "<h1>" +
           "Confirm Attendance" +
@@ -189,7 +190,7 @@
       // --------------------------------------------------------
 
       function confirmAttendanceClick() {
-        if (!sheetId || !token) {
+        if (Number.isNaN(sheetId) || !token) {
           showError(
             "Invalid confirmation link",
             "This confirmation link is incomplete.",
